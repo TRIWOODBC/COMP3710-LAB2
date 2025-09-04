@@ -8,7 +8,7 @@ f0 = 1 # Number of sample points
 # Duration of the signal in seconds
 # Fundamental frequency of the square wave in Hz
 # List of harmonic numbers used to construct the square wave
-harmonics = [1, 3, 5]
+harmonics = [1, 3, 5, 50, 100]
 # Define the square wave function
 def square_wave(t):
     return np.sign(np.sin(2.0 * np.pi * f0 * t))
