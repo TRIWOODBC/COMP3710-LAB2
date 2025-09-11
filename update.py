@@ -6,7 +6,7 @@ def run_cmd(cmd):
     os.system(cmd)
 
 # 默认 commit 信息
-msg = "try increase harmonics "
+msg = "add DFT AND FFT comparison example"
 
 # 如果运行时给了参数，就用参数作为 commit 信息
 if len(sys.argv) > 1:
