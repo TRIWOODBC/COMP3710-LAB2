@@ -6,7 +6,7 @@ def run_cmd(cmd):
     os.system(cmd)
 
 # 默认 commit 信息
-msg = "Add PyTorch Fourier benchmark script with CUDA/MPS/CPU support"
+msg = "Add eigenfaces visualization using plot_gallery and matplotlib"
 
 # 如果运行时给了参数，就用参数作为 commit 信息
 if len(sys.argv) > 1:
