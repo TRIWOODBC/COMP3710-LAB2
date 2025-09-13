@@ -2,6 +2,7 @@ from sklearn.datasets import fetch_lfw_people
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import numpy as np
+import torch
 # Download the data, if not already on disk and load it as numpy arrays
 lfw_people = fetch_lfw_people(min_faces_per_person=70, resize=0.4)
 # introspect the images arrays to find the shapes (for plotting)
@@ -28,14 +29,65 @@ mean = np.mean(X_train, axis=0)
 X_train -= mean
 X_test -= mean
 #Eigen-decomposition
-U, S, V = np.linalg.svd(X_train, full_matrices=False)
-components = V[:n_components]
+# U, S, V = np.linalg.svd(X_train, full_matrices=False)
+# components = V[:n_components]
+# eigenfaces = components.reshape((n_components, h, w))
+# #project into PCA subspace
+# X_transformed = np.dot(X_train, components.T)
+# print(X_transformed.shape)
+# X_test_transformed = np.dot(X_test, components.T)
+# print(X_test_transformed.shape)
+
+def pca_torch(X_train, X_test, n_components):
+    """
+    PCA implemented with PyTorch tensors, supporting CUDA/MPS/CPU.
+    """
+    # 自动选择设备：CUDA > MPS > CPU
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    print(f"Using device: {device}")
+
+    # 转成张量
+    X_train_t = torch.tensor(X_train, dtype=torch.float32, device=device)
+    X_test_t  = torch.tensor(X_test, dtype=torch.float32, device=device)
+
+    # 中心化
+    mean = X_train_t.mean(0, keepdim=True)
+    X_train_c = X_train_t - mean
+    X_test_c  = X_test_t - mean
+
+    # 协方差矩阵
+    cov = X_train_c.T @ X_train_c / (X_train_t.shape[0] - 1)
+
+    # 特征分解
+    eigvals, eigvecs = torch.linalg.eigh(cov)   # eigvecs: [n_features, n_features]
+
+    # 取最大的 n_components
+    idx = torch.argsort(eigvals, descending=True)[:n_components]
+    components = eigvecs[:, idx].T              # [n_components, n_features]
+
+    # 投影
+    X_train_pca = X_train_c @ components.T
+    X_test_pca  = X_test_c @ components.T
+
+    # 转回 NumPy，方便后续 sklearn 用
+    return (X_train_pca.cpu().numpy(),
+            X_test_pca.cpu().numpy(),
+            components.cpu().numpy(),
+            eigvals.detach().cpu().numpy())   # 新增返回 eigvals
+
+
+
+# PCA with PyTorch
+X_transformed, X_test_transformed, components, eigvals = pca_torch(X_train, X_test, n_components)
 eigenfaces = components.reshape((n_components, h, w))
-#project into PCA subspace
-X_transformed = np.dot(X_train, components.T)
 print(X_transformed.shape)
-X_test_transformed = np.dot(X_test, components.T)
 print(X_test_transformed.shape)
+
 import matplotlib.pyplot as plt
 def plot_gallery(images, titles, h, w, n_row=3, n_col=4):
     """Helper function to plot a gallery of portraits"""
@@ -52,11 +104,22 @@ plot_gallery(eigenfaces, eigenface_titles, h, w)
 
 plt.show()
 
-explained_variance = (S ** 2) / (n_samples - 1)
+
+
+# explained_variance = (S ** 2) / (n_samples - 1)
+# total_var = explained_variance.sum()
+# explained_variance_ratio = explained_variance / total_var
+# ratio_cumsum = np.cumsum(explained_variance_ratio)
+# print(ratio_cumsum.shape)
+# eigenvalueCount = np.arange(n_components)
+# plt.plot(eigenvalueCount, ratio_cumsum[:n_components])
+# plt.title('Compactness')
+# plt.show()
+explained_variance = eigvals[::-1]   # 注意 torch.linalg.eigh 返回的是升序，这里倒序
 total_var = explained_variance.sum()
 explained_variance_ratio = explained_variance / total_var
 ratio_cumsum = np.cumsum(explained_variance_ratio)
-print(ratio_cumsum.shape)
+
 eigenvalueCount = np.arange(n_components)
 plt.plot(eigenvalueCount, ratio_cumsum[:n_components])
 plt.title('Compactness')
