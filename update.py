@@ -6,7 +6,7 @@ def run_cmd(cmd):
     os.system(cmd)
 
 # 默认 commit 信息
-msg = "Implement improved CNN classifier with normalization, class weights, BatchNorm, and Dropout; achieved ~92% accuracy on LFW dataset"
+msg = " add CIFAR-10 ResNet18 training script with AMP and cosine LR schedule"
 
 # 如果运行时给了参数，就用参数作为 commit 信息
 if len(sys.argv) > 1:
