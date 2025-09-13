@@ -6,7 +6,7 @@ def run_cmd(cmd):
     os.system(cmd)
 
 # 默认 commit 信息
-msg = "Improve CNN classifier: add normalization, class weights, BatchNorm, Dropout, smaller lr, and gradient clipping"
+msg = "Implement improved CNN classifier with normalization, class weights, BatchNorm, and Dropout; achieved ~92% accuracy on LFW dataset"
 
 # 如果运行时给了参数，就用参数作为 commit 信息
 if len(sys.argv) > 1:

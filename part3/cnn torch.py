@@ -33,24 +33,29 @@ X_test_t  = torch.tensor(X_test, dtype=torch.float32)
 y_train_t = torch.tensor(y_train, dtype=torch.long)
 y_test_t  = torch.tensor(y_test, dtype=torch.long)
 
-# ========== 3. 标准化 (零均值, 单位方差) ==========
+# ========== 3. 设备选择 ==========
+device = torch.device("cuda" if torch.cuda.is_available()
+                      else "mps" if torch.backends.mps.is_available()
+                      else "cpu")
+print("Using device:", device)
+
+# ========== 4. 标准化 ==========
 mean = X_train_t.mean()
-std = X_train_t.std().clamp_min(1e-6)   # 防除零
+std = X_train_t.std().clamp_min(1e-6)   # 防止除零
 X_train_t = (X_train_t - mean) / std
 X_test_t  = (X_test_t  - mean) / std
 
-# ========== 4. 类别权重 (应对不平衡) ==========
+# ========== 5. 类别权重 ==========
 unique, counts = np.unique(y_train, return_counts=True)
-class_count = torch.tensor(counts, dtype=torch.float32)
-weights = (class_count.sum() / class_count).to(torch.float32)
-weights = weights / weights.sum() * len(unique)   # 归一化
-criterion = nn.CrossEntropyLoss(weight=weights)
+class_count = torch.tensor(counts, dtype=torch.float32, device=device)  # 在同一 device 上
+class_weights = class_count.sum() / class_count
+criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-# ========== 5. DataLoader ==========
+# ========== 6. DataLoader ==========
 train_loader = DataLoader(TensorDataset(X_train_t, y_train_t), batch_size=32, shuffle=True)
 test_loader  = DataLoader(TensorDataset(X_test_t, y_test_t), batch_size=32, shuffle=False)
 
-# ========== 6. 定义 CNN ==========
+# ========== 7. 定义 CNN ==========
 class CNN(nn.Module):
     def __init__(self, num_classes):
         super(CNN, self).__init__()
@@ -72,16 +77,11 @@ class CNN(nn.Module):
         x = self.classifier(x)
         return x
 
-# ========== 7. 训练配置 ==========
-device = torch.device("cuda" if torch.cuda.is_available()
-                      else "mps" if torch.backends.mps.is_available()
-                      else "cpu")
-print("Using device:", device)
-
+# ========== 8. 训练配置 ==========
 model = CNN(num_classes=n_classes).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
-# ========== 8. 训练循环 ==========
+# ========== 9. 训练循环 ==========
 epochs = 30
 for epoch in range(epochs):
     model.train()
@@ -95,11 +95,10 @@ for epoch in range(epochs):
         torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)  # 梯度裁剪
         optimizer.step()
         running_loss += loss.item()
-
     avg_loss = running_loss / len(train_loader)
     print(f"Epoch {epoch+1}/{epochs}, Loss={avg_loss:.4f}")
 
-# ========== 9. 测试 ==========
+# ========== 10. 测试 ==========
 model.eval()
 all_preds, all_labels = [], []
 with torch.no_grad():
