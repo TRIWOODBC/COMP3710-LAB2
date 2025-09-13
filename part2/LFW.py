@@ -51,3 +51,30 @@ eigenface_titles = ["eigenface %d" % i for i in range(eigenfaces.shape[0])]
 plot_gallery(eigenfaces, eigenface_titles, h, w)
 
 plt.show()
+
+explained_variance = (S ** 2) / (n_samples - 1)
+total_var = explained_variance.sum()
+explained_variance_ratio = explained_variance / total_var
+ratio_cumsum = np.cumsum(explained_variance_ratio)
+print(ratio_cumsum.shape)
+eigenvalueCount = np.arange(n_components)
+plt.plot(eigenvalueCount, ratio_cumsum[:n_components])
+plt.title('Compactness')
+plt.show()
+
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import cross_val_score
+#build random forest
+estimator = RandomForestClassifier(n_estimators=150, max_depth=15, max_features=150)
+estimator.fit(X_transformed, y_train) #expects X as [n_samples, n_features]
+predictions = estimator.predict(X_test_transformed)
+correct = predictions==y_test
+total_test = len(X_test_transformed)
+#print("Gnd Truth:", y_test)
+print("Total Testing", total_test)
+print("Predictions", predictions)
+print("Which Correct:",correct)
+print("Total Correct:",np.sum(correct))
+print("Accuracy:",np.sum(correct)/total_test)
+print(classification_report(y_test, predictions, target_names=target_names))

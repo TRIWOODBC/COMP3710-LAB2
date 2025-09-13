@@ -6,7 +6,7 @@ def run_cmd(cmd):
     os.system(cmd)
 
 # 默认 commit 信息
-msg = "Add eigenfaces visualization using plot_gallery and matplotlib"
+msg = "Add compactness plot and RandomForest classifier for PCA-based face recognition"
 
 # 如果运行时给了参数，就用参数作为 commit 信息
 if len(sys.argv) > 1:
