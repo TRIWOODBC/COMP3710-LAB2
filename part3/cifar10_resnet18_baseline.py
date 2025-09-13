@@ -81,6 +81,8 @@ def main():
     ap.add_argument('--wd', type=float, default=5e-4)
     ap.add_argument('--amp', action='store_true')
     ap.add_argument('--num-workers', type=int, default=8)
+    # ✅ 新增：数据根目录参数，默认 ~/datasets
+    ap.add_argument('--data-root', type=str, default=os.path.expanduser('~/datasets'))
     args = ap.parse_args()
 
     device = (torch.device('cuda') if torch.cuda.is_available()
@@ -92,11 +94,11 @@ def main():
     torch.backends.cudnn.benchmark = True
     channels_last = (device.type == 'cuda')
 
-    # 数据增强（快速&有效）
+    # 数据增强
     train_tf = T.Compose([
         T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
-        T.AutoAugment(T.AutoAugmentPolicy.CIFAR10),  # 很关键
+        T.AutoAugment(T.AutoAugmentPolicy.CIFAR10),
         T.ToTensor(),
         T.Normalize((0.4914, 0.4822, 0.4465),(0.247, 0.243, 0.261))
     ])
@@ -105,8 +107,9 @@ def main():
         T.Normalize((0.4914, 0.4822, 0.4465),(0.247, 0.243, 0.261))
     ])
 
-    train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=train_tf)
-    test_set  = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=test_tf)
+    # ✅ 使用 args.data_root 保存数据
+    train_set = torchvision.datasets.CIFAR10(root=args.data_root, train=True,  download=True, transform=train_tf)
+    test_set  = torchvision.datasets.CIFAR10(root=args.data_root, train=False, download=True, transform=test_tf)
 
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True,
                               num_workers=args.num_workers, pin_memory=True, persistent_workers=True)
@@ -116,13 +119,13 @@ def main():
     model = ResNet18(num_classes=10).to(device)
     if channels_last: model = model.to(memory_format=torch.channels_last)
 
-    # Label Smoothing 可以更稳
+    # Label Smoothing
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.wd, nesterov=True)
     scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
     scaler = GradScaler(enabled=args.amp)
 
-    # 线性 warmup 到 base lr（前5个epoch）
+    # warmup 学习率
     def lr_warmup(epoch):
         warmup_epochs = 5
         if epoch < warmup_epochs:
@@ -149,7 +152,7 @@ def main():
             scaler.update()
             running += loss.item()
 
-        # 调整学习率：先 warmup，再 cosine
+        # 调整学习率
         if epoch < 5: warmup.step()
         else: scheduler.step()
 
